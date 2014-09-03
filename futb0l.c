@@ -262,7 +262,7 @@ int main(int argc, char **argv){
 	overwrite_waiter->tree_entry.__rb_parent_color = tbase+24;
 
 	// the kernel waiter is reinserted through fake_userspace_waiter.
-	// so we set it NULL to prevent a double insert (since rb_right is 
+	// so we set it NULL to prevent a double insert (since rb_left is 
         // currently the kernel waiter) preventing all kinds of weird behaviour.
 	fake_userspace_waiter->tree_entry.rb_right = NULL;
 	fake_userspace_waiter->tree_entry.rb_left = NULL;
