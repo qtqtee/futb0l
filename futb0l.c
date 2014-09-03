@@ -107,7 +107,6 @@ void *ger(void *arg){
 	printf("ger thread\n");
 
 	int fd = open("/dev/null", O_RDWR);
-	if(write(fd, (void*)(tbase+24), 8) < 0) printf("no kernel r/w... yet\n");
 	
 	setpriority(PRIO_PROCESS , 0, *(int*)arg);
 	
